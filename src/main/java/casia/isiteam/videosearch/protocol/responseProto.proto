@@ -1,0 +1,21 @@
+
+package casia.isiteam.videosearch.protocol;
+
+option optimize_for = SPEED;
+
+enum Status {
+  OK=200;
+  FAILED=400;
+}
+
+message Head {
+	required Status status=1;
+}
+message Context {
+  required string context=1;
+}
+
+message Response {
+  required Head head=1;
+  required Context context=2;
+}
