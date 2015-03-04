@@ -11,12 +11,7 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
-
 import javax.xml.ws.Endpoint;
-
-import org.apache.cxf.jaxws.JaxWsProxyFactoryBean;
-
-import casia.isiteam.videosearch.master.SlaveRegisterService;
 
 
 public class SlaveIndexer {

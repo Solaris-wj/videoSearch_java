@@ -4,7 +4,6 @@ import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
@@ -16,6 +15,10 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.DelimiterBasedFrameDecoder;
+import io.netty.handler.codec.protobuf.ProtobufDecoder;
+import io.netty.handler.codec.protobuf.ProtobufEncoder;
+import io.netty.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
+import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
 import io.netty.handler.codec.string.StringDecoder;
 import io.netty.handler.codec.string.StringEncoder;
 import io.netty.handler.logging.LogLevel;
@@ -25,8 +28,10 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.LinkedBlockingDeque;
 
-
+import casia.isiteam.videosearch.protocol.Protocol;
+import casia.isiteam.videosearch.protocol.RequestProto.Request;
 import casia.isiteam.videosearch.slave.client.SlaveIndexerClient;
+import casia.isiteam.videosearch.util.ProtocolParam;
 import casia.isiteam.videosearch.util.Util;
 
 /**
@@ -42,10 +47,10 @@ public class SlaveManager {
 
 	// 已经报告地址和端口的slave，等待连接检索服务
 	BlockingQueue<SlaveIndexerClient> unConnSlaves;
-	//CopyOnWriteArraySet<SlaveIndexerService> slaveIndexer;
+	// CopyOnWriteArraySet<SlaveIndexerService> slaveIndexer;
 
 	CopyOnWriteArraySet<SlaveIndexerClient> slaveIndexerClients;
-	
+
 	String host;
 	int registerPort;
 
@@ -59,14 +64,16 @@ public class SlaveManager {
 
 	}
 
-	public boolean addRegisteredSlave(SlaveIndexerClient slaveIndexerClient) {
-		return unConnSlaves.offer(slaveIndexerClient);
+	public void addSlaveIndexerClients(SlaveIndexerClient slaveIndexerClient){
+		slaveIndexerClients.add(slaveIndexerClient);
 	}
-
+	public void removeSlaveIndexerClients(SlaveIndexerClient slaveIndexerClient){
+		slaveIndexerClients.remove(slaveIndexerClient);
+	}
 	public void start() {
 		Thread registerThread = new Thread(new RegisterService(this));
 		registerThread.start();
-		
+
 		Thread connThread = new Thread();
 		connThread.start();
 	}
@@ -103,15 +110,18 @@ class RegisterService implements Runnable {
 									ChannelPipeline pipeline = ch.pipeline();
 
 									// inbound
-									pipeline.addLast(new DelimiterBasedFrameDecoder(
-											SlaveManager.MAX_LINE,
-											SlaveManager.delimiterBuf));
-									pipeline.addLast(new StringDecoder());
+									pipeline.addLast(new ProtobufVarint32FrameDecoder());
+									pipeline.addLast(new ProtobufDecoder(
+											Protocol.Request
+													.getDefaultInstance()));
+
+									// outbound
+									pipeline.addLast(new ProtobufVarint32LengthFieldPrepender());
+									pipeline.addLast(new ProtobufEncoder());
+
 									pipeline.addLast(new RegisterHandler(
 											slaveManager));
 
-									// outbound
-									pipeline.addLast(new StringEncoder());
 								}
 							});
 
@@ -122,60 +132,10 @@ class RegisterService implements Runnable {
 			f.channel().closeFuture().sync();
 
 		} catch (Exception e) {
-			Util.printContextInfo(e.getMessage());			
-			return ; 
+			Util.printContextInfo(e.getMessage());
+			return;
 		} finally {
 			workGroup.shutdownGracefully();
-		}
-	}
-}
-
-class ConnectSlaveService implements Runnable {
-	SlaveManager slaveManager;
-
-	public ConnectSlaveService(SlaveManager slaveManager) {
-		this.slaveManager = slaveManager;
-	}
-
-	@Override
-	public void run() {
-
-		SlaveIndexerClient slaveIndexerClient;
-		try {
-			slaveIndexerClient = slaveManager.unConnSlaves.take();
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			Util.printContextInfo(e.getMessage());
-			return ;
-		}
-
-		EventLoopGroup group = new NioEventLoopGroup();
-		try {
-			// 配置客户端启动类
-			Bootstrap b = new Bootstrap();
-			b.group(group).channel(NioSocketChannel.class)
-					.option(ChannelOption.TCP_NODELAY, true)
-					.option(ChannelOption.SO_KEEPALIVE, true)
-					.handler(new ChannelInitializer<SocketChannel>() {
-						@Override
-						protected void initChannel(SocketChannel ch)
-								throws Exception {
-
-						}
-					});
-
-			// 连接服务器 同步等待成功
-			ChannelFuture f = b.connect(slaveIndexerClient.getSocketAddr()).sync();
-
-			slaveIndexerClient.setClientChannel(f.channel());
-			f.channel().closeFuture().sync();
-
-		} catch (Exception e) {
-			Util.printContextInfo(e.getMessage());
-			group.shutdownGracefully();
-		} finally {
-			// 释放线程组资源
-			group.shutdownGracefully();
 		}
 	}
 }

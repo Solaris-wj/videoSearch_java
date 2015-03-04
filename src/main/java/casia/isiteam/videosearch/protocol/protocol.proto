@@ -1,23 +1,13 @@
-
 package casia.isiteam.videosearch.protocol;
 
-// How to generate
-// ===============
-// $ cd example
-// $ protoc src/main/java/io/netty/example/worldclock/WorldClockProtocol.proto \
-//          --java_out=src/main/java
-//
-// Add @SuppressWarnings("all") to the generated code not to pollute IDE task list.
 option optimize_for = SPEED;
-
-
-
-message Request {
 
 enum MessageType {
 	HEART_BEAT=1;
 	NORMAL=2;
 }
+message Request {
+
 enum MethodType {
   ADD_VIDEO=1;
   SEARCH_VIDEO=2;
@@ -36,3 +26,23 @@ message Context {
   required Head head=1;
   optional Context context=2;
 }
+
+message Response {
+
+	enum Status {
+  		OK=200;
+  		FAILED=400;
+	}
+
+	message Head {
+		required MessageType messageType=1;
+		optional Status status=2;
+	}
+	message Context {
+  		required string context=1;
+	}
+
+  	required Head head=1;
+  	optional Context context=2;
+}
+

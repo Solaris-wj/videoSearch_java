@@ -6,7 +6,7 @@ import io.netty.channel.Channel;
 
 public class SlaveIndexerClient {
 	//String slaveName;
-	SocketAddress socketAddr=null;
+	//SocketAddress socketAddr=null;
 	Channel clientChannel=null;
 	
 	@Override
@@ -15,13 +15,13 @@ public class SlaveIndexerClient {
 	}
 
 	
-	public SocketAddress getSocketAddr() {
-		return socketAddr;
-	}
+//	public SocketAddress getSocketAddr() {
+//		return socketAddr;
+//	}
 
-	public void setSocketAddr(SocketAddress socketAddr) {
-		this.socketAddr = socketAddr;
-	}
+//	public void setSocketAddr(SocketAddress socketAddr) {
+//		this.socketAddr = socketAddr;
+//	}
 
 	public Channel getClientChannel() {
 		return clientChannel;
