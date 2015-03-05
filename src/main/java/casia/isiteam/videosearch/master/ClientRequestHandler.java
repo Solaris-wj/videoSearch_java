@@ -34,7 +34,7 @@ public class ClientRequestHandler extends
 			dispatchRequest(ctx,msg);
 			break;
 		case SEARCH_VIDEO:
-			handleSearch(ctx, msg);
+			broadcastRequest(ctx, msg);
 			break;
 		default:
 			break;
@@ -72,7 +72,7 @@ public class ClientRequestHandler extends
 		
 	}
 	
-	private void handleSearch(ChannelHandlerContext ctx, Request msg) throws FileNotFoundException{
+	private void broadcastRequest(ChannelHandlerContext ctx, Request msg) throws FileNotFoundException{
 		
 		
 		String context=msg.getBody().getContext();
