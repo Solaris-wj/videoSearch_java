@@ -25,17 +25,17 @@ class Configuration {
 			indexer.masterPort = 800100;
 		}
 
-		indexer.localhost = properties.getProperty("localhost");
-		if (indexer.localhost == null || indexer.localhost.length() == 0) {
-			indexer.localhost = "0.0.0.0";
+		indexer.host = properties.getProperty("localhost");
+		if (indexer.host == null || indexer.host.length() == 0) {
+			indexer.host = "0.0.0.0";
 		}
 
 		try {
-			indexer.localPort = Integer.parseInt(properties
+			indexer.port = Integer.parseInt(properties
 					.getProperty("servicePort"));
 		} catch (NumberFormatException e) {
 			// throw new IOException("servicePort can not be null");
-			indexer.localPort = 900100;
+			indexer.port = 900100;
 		}
 
 		indexer.tempFileDir = properties.getProperty("tempFileDir");

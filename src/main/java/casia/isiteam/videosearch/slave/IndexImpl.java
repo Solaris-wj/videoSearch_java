@@ -7,7 +7,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 public class IndexImpl {
 	IndexJNIimpl indexJni = new IndexJNIimpl();
 
-	ReadWriteLock readWriteLock = new ReentrantReadWriteLock(); // Ð´ËøÓÅÏÈ
+	ReadWriteLock readWriteLock = new ReentrantReadWriteLock(); 
 
 	public IndexImpl(String dataDir, String logDir, String configFilePath)
 			throws IOException {
@@ -16,7 +16,7 @@ public class IndexImpl {
 		}
 	}
 
-	// ³õÊ¼»¯
+	// ï¿½ï¿½Ê¼ï¿½ï¿½
 	private int initIndex(String dataDir, String logDir, String algoConfPath) {
 		int ret = indexJni.initIndex(dataDir, logDir, algoConfPath);
 		return ret;
@@ -33,7 +33,6 @@ public class IndexImpl {
 
 	public String searchVideo(String filePath) {
 		readWriteLock.readLock().lock();
-
 		String ret = indexJni.searchVideo(filePath);
 		readWriteLock.readLock().unlock();
 
@@ -44,9 +43,7 @@ public class IndexImpl {
 	public int deleteVideo(String fileID) {
 
 		readWriteLock.writeLock().lock();
-
 		int ret = indexJni.deleteVideo(fileID);
-
 		readWriteLock.writeLock().unlock();
 
 		return ret;

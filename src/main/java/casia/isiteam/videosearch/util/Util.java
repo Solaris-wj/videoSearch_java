@@ -1,5 +1,7 @@
 package casia.isiteam.videosearch.util;
 
+import jdk.internal.dynalink.beans.StaticClass;
+
 public class Util {
 
 	/*
@@ -18,4 +20,15 @@ public class Util {
 			System.err.format("LineNumber:%s\n\n", state[1].getLineNumber());
 		}
 	}
+
+	public static String[] getFileGroupAndName(String fileID){
+		int ind=fileID.indexOf('/');
+		
+		String []ret=new String[2];
+		ret[0]=fileID.substring(0,ind);
+		ret[1]=fileID.substring(ind+1,fileID.length());
+		
+		return ret;
+	}
+	
 }

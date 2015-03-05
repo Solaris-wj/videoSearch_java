@@ -1,90 +1,91 @@
 package casia.isiteam.videosearch.slave;
 
 import io.netty.bootstrap.Bootstrap;
-import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
+import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.codec.protobuf.ProtobufDecoder;
+import io.netty.handler.codec.protobuf.ProtobufEncoder;
+import io.netty.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
+import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
 
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URISyntaxException;
-import java.net.URL;
-import javax.xml.ws.Endpoint;
-
+import casia.isiteam.videosearch.protocol.Protocol;
 
 public class SlaveIndexer {
-	private IndexImpl indexImpl=null;
+	private IndexImpl indexImpl = null;
 
-	String tempFileDir=null;
-	String dataDir=null;
-	String logDir=null;
-	String configFilePath=null;
-	String algoConfFilePath=null;
-	
-	String masterHost=null;
+	String tempFileDir = null;
+	String dataDir = null;
+	String logDir = null;
+	String configFilePath = null;
+	String algoConfFilePath = null;
+
+	String masterHost = null;
 	int masterPort;
-	
-	String localhost=null;
-	int localPort;
-	Configuration configuration=null;
-	public SlaveIndexer(String confFilePath, String algoConfFilePath) throws IOException, URISyntaxException {
-		this.configFilePath=confFilePath;	
-		this.algoConfFilePath=algoConfFilePath;
-		
-		configuration = new Configuration(configFilePath,this);			
-		indexImpl=new IndexImpl(dataDir,logDir,configFilePath);		
-		SlaveIndexerService indexerService=new SlaveIndexerServiceImpl(dataDir, logDir, algoConfFilePath);
-		
-		URL url=new URL("http", "0.0.0.0", localPort, SlaveRegisterService.class.getSimpleName());
-		Endpoint.publish(url.toString(), indexerService);		
-		
-		registerToMaster(url.toString());
-		
-	}
-	
-	private boolean registerToMaster(String indexServiceURL) {
-		
 
+	String host = null;
+	int port;
+	Configuration configuration = null;
+
+	public SlaveIndexer(String confFilePath, String algoConfFilePath)
+			throws IOException {
+		this.configFilePath = confFilePath;
+		this.algoConfFilePath = algoConfFilePath;
+
+		configuration = new Configuration(configFilePath, this);
+		indexImpl = new IndexImpl(dataDir, logDir, configFilePath);
+
+	}
+
+	public void start() throws InterruptedException {
+		// 网络事件处理线程组
+		EventLoopGroup group = new NioEventLoopGroup();
 		try {
-			EventLoopGroup workGroup=new NioEventLoopGroup();
-			
-			Bootstrap bootstrap=new Bootstrap();
-			bootstrap.group(workGroup);
-			bootstrap.option(ChannelOption.TCP_NODELAY, true);
-			bootstrap.option(ChannelOption.SO_KEEPALIVE, true);
-			bootstrap.handler( new ChannelInitializer<Channel>() {
+			// 配置客户端启动类
+			Bootstrap b = new Bootstrap();
+			b.group(group).channel(NioSocketChannel.class)
+					.option(ChannelOption.TCP_NODELAY, true)
+					.option(ChannelOption.SO_KEEPALIVE, true)
+					.handler(new ChannelInitializer<SocketChannel>() {
+						@Override
+						protected void initChannel(SocketChannel ch)
+								throws Exception {
+							ChannelPipeline pipeline = ch.pipeline();
+							pipeline.addLast(new ProtobufVarint32FrameDecoder());
+							pipeline.addLast(new ProtobufDecoder(
+									Protocol.Request.getDefaultInstance()));
+							pipeline.addLast(new ProtobufVarint32LengthFieldPrepender());
+							pipeline.addLast(new ProtobufEncoder());
+							
+							pipeline.addLast(new SlaveHeartBeatHandler());
 
-				@Override
-				protected void initChannel(Channel ch) throws Exception {
-					// TODO Auto-generated method stub
-					
-				}
-				
-			});
-			
-			bootstrap.connect();
-			
-		} catch (Exception e) {
-			// TODO: handle exception
+						}
+					});
+			// 连接服务器 同步等待成功
+			ChannelFuture f = b.connect(host, port).sync();
+
+			// 同步等待客户端通道关闭
+			f.channel().closeFuture().sync();
+		} finally {
+			// 释放线程组资源
+			group.shutdownGracefully();
 		}
-		
-		return true;
 	}
-	
-	public IndexImpl getInderJNI() {
-		return indexImpl;
-	}
-	
-	public static void main(String[] args) throws IOException, URISyntaxException{
-		if(args.length < 1){
+
+	public static void main(String[] args) throws IOException {
+		if (args.length < 1) {
 			System.out.println("args <1");
 			System.out.println("must provide configure file path");
 		}
-		
-		String configFilePathString=args[0];
+
+		String configFilePathString = args[0];
 		@SuppressWarnings("unused")
-		SlaveIndexer slaveIndexer=new SlaveIndexer(configFilePathString, null);			
+		SlaveIndexer slaveIndexer = new SlaveIndexer(configFilePathString, null);
 	}
 }

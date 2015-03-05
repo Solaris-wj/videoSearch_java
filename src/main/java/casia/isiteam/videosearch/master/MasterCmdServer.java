@@ -1,97 +1,79 @@
 package casia.isiteam.videosearch.master;
 
-import io.netty.bootstrap.Bootstrap;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.CopyOnWriteArraySet;
+
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.ServerSocketChannel;
-import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.handler.codec.DelimiterBasedFrameDecoder;
 import io.netty.handler.codec.protobuf.ProtobufDecoder;
 import io.netty.handler.codec.protobuf.ProtobufEncoder;
 import io.netty.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
 import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
-import io.netty.handler.codec.string.StringDecoder;
-import io.netty.handler.codec.string.StringEncoder;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
-
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CopyOnWriteArraySet;
-import java.util.concurrent.LinkedBlockingDeque;
-
+import io.netty.handler.timeout.IdleStateHandler;
 import casia.isiteam.videosearch.protocol.Protocol;
-import casia.isiteam.videosearch.protocol.RequestProto.Request;
 import casia.isiteam.videosearch.slave.client.SlaveIndexerClient;
 import casia.isiteam.videosearch.util.ProtocolParam;
 import casia.isiteam.videosearch.util.Util;
 
-/**
- * 
- * @author dell
- * 
- */
-public class SlaveManager {
+public class MasterCmdServer implements Runnable {
 
-	public static final ByteBuf delimiterBuf = Unpooled
-			.copiedBuffer(new String("\r\n").getBytes());
-	public static final int MAX_LINE = 256;
-
-	// 已经报告地址和端口的slave，等待连接检索服务
-	BlockingQueue<SlaveIndexerClient> unConnSlaves;
-	// CopyOnWriteArraySet<SlaveIndexerService> slaveIndexer;
-
-	CopyOnWriteArraySet<SlaveIndexerClient> slaveIndexerClients;
-
-	String host;
-	int registerPort;
-
-	public SlaveManager(String host, int port) {
-		this.host = host;
-		this.registerPort = port;
-
-		unConnSlaves = new LinkedBlockingDeque<SlaveIndexerClient>();
+	private MasterIndexer masterIndexer;
+	private CopyOnWriteArraySet<SlaveIndexerClient> slaveIndexerClients;
+	private ConcurrentMap<Integer,ChannelHandlerContext> requestMap;
+	private int requestID=0;
+	
+	private String host;
+	private int port;
+	
+	public MasterCmdServer(String host,int port) {
+		// TODO Auto-generated constructor stub
+		this.host=host;
+		this.port=port;
 
 		slaveIndexerClients = new CopyOnWriteArraySet<SlaveIndexerClient>();
-
+		requestMap=new ConcurrentHashMap<Integer, ChannelHandlerContext>();
 	}
-
-	public void addSlaveIndexerClients(SlaveIndexerClient slaveIndexerClient){
+	
+	
+	public ConcurrentMap<Integer, ChannelHandlerContext> getRequestMap() {
+		return requestMap;
+	}
+	
+	public CopyOnWriteArraySet<SlaveIndexerClient> getSlaveIndexerClients() {
+		return slaveIndexerClients;
+	}
+	public int getRequestID(){
+		if(requestID >= Long.MAX_VALUE){
+			requestID=0;
+		}		
+		return requestID++;
+	}
+	
+	public void addSlaveIndexerClients(SlaveIndexerClient slaveIndexerClient) {
 		slaveIndexerClients.add(slaveIndexerClient);
 	}
-	public void removeSlaveIndexerClients(SlaveIndexerClient slaveIndexerClient){
+
+	public void removeSlaveIndexerClients(SlaveIndexerClient slaveIndexerClient) {
 		slaveIndexerClients.remove(slaveIndexerClient);
 	}
-	public void start() {
-		Thread registerThread = new Thread(new RegisterService(this));
-		registerThread.start();
-
-		Thread connThread = new Thread();
-		connThread.start();
-	}
-}
-
-class RegisterService implements Runnable {
-
-	SlaveManager slaveManager;
-
-	public RegisterService(SlaveManager slaveManager) {
-		this.slaveManager = slaveManager;
-	}
-
+	
+	@Override
 	public void run() {
-
+		// TODO Auto-generated method stub
 		EventLoopGroup workGroup = new NioEventLoopGroup();
 		try {
-			final SlaveManager slaveManager = this.slaveManager;
+			final MasterCmdServer masterCmdServer = this;
 			// 配置服务器启动类
 			ServerBootstrap b = new ServerBootstrap();
 			b.group(workGroup)
@@ -119,15 +101,25 @@ class RegisterService implements Runnable {
 									pipeline.addLast(new ProtobufVarint32LengthFieldPrepender());
 									pipeline.addLast(new ProtobufEncoder());
 
-									pipeline.addLast(new RegisterHandler(
-											slaveManager));
+									pipeline.addLast(
+											ProtocolParam.idleHandlerName,
+											new IdleStateHandler(
+													ProtocolParam.idleReadTimeInSeconds,
+													ProtocolParam.idleWriteTimeInSeconds,
+													0));
+
+									// 过滤掉心跳包和slave初次链接的包
+									pipeline.addLast(new MasterHeartBeatHandler(
+											masterCmdServer));
+									pipeline.addLast(new ClientRequestHandler(
+											masterCmdServer));
 
 								}
 							});
 
 			// 绑定端口 等待绑定成功
-			ChannelFuture f = b.bind(slaveManager.host,
-					slaveManager.registerPort).sync();
+			ChannelFuture f = b.bind(host, port)
+					.sync();
 			// 等待服务器退出
 			f.channel().closeFuture().sync();
 
@@ -138,4 +130,5 @@ class RegisterService implements Runnable {
 			workGroup.shutdownGracefully();
 		}
 	}
+
 }

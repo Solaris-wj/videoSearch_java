@@ -8,23 +8,25 @@ enum MessageType {
 }
 message Request {
 
-enum MethodType {
-  ADD_VIDEO=1;
-  SEARCH_VIDEO=2;
-  DELETE_VIDEO=3;
-}
+	enum MethodType {
+	  ADD_VIDEO=1;
+	  SEARCH_VIDEO=2;
+	  DELETE_VIDEO=3;
+	}
 
-message Head {
-  required MessageType messageType=1;
-  optional MethodType methodType=2;
-}
+	message Head {
+	  required MessageType messageType=1;
+	  optional int32 ID=2;
+	  optional MethodType methodType=3;
+	}
 
-message Context {
-  required string context=1;
-}
+	message Body {
+	 //以行分割的字符串 \n
+	  required string context=1;
+	}
 
-  required Head head=1;
-  optional Context context=2;
+    required Head head=1;
+    optional Body body=2;
 }
 
 message Response {
@@ -38,11 +40,11 @@ message Response {
 		required MessageType messageType=1;
 		optional Status status=2;
 	}
-	message Context {
+	message Body {
   		required string context=1;
 	}
 
   	required Head head=1;
-  	optional Context context=2;
+  	optional Body body=2;
 }
 

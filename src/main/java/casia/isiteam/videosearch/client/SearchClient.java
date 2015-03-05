@@ -14,17 +14,7 @@ public class SearchClient {
 	
 	
 	public SearchClient(String indexHost, int port){
-//		try {
-//			ClientGlobal.init(fdfs_client_config_path);
-//		} catch (IOException | MyException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		}
-		
-		URI uri= new URI("rmi",null,indexHost,port,"/SlaveRegisterService",null,null);
-		
-		SlaveRegisterService service=(SlaveRegisterService)Naming.lookup(uri.toString());
-		
+
 
 	}
 	
@@ -60,7 +50,7 @@ public class SearchClient {
 	}
 
 	public String searchVideo(String fileId){
-		//String 
+		
 	}
 
 	public int deleteVideo(String fileId){

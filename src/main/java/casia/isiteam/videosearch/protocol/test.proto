@@ -1,0 +1,16 @@
+
+
+
+package casia.isiteam.videosearch.protocol;
+
+option optimize_for = SPEED;
+
+
+
+message M1 {
+	required string context=1;
+}
+message M2 {
+	required string context=1;
+	required string context2=2;
+}
